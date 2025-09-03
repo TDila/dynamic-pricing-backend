@@ -1,0 +1,37 @@
+package com.ecommerce.rules
+
+import com.ecommerce.dynamic_pricing_backend.dto.CartDto
+import com.ecommerce.dynamic_pricing_backend.entity.Promotion
+import com.ecommerce.dynamic_pricing_backend.dto.PriceCalculationResult
+import java.math.BigDecimal
+
+rule "Apply Percentage Promotion"
+    when
+        $promotion : Promotion(discountType == Promotion.DiscountType.PERCENTAGE)
+        $cart : CartDto(subtotal >= $promotion.minOrderAmount || $promotion.minOrderAmount == null)
+        $result : PriceCalculationResult()
+    then
+        BigDecimal discountPercent = $promotion.getDiscountValue().divide(new BigDecimal("100"));
+        BigDecimal discount = $cart.getSubtotal().multiply(discountPercent);
+
+        if ($promotion.getMaxDiscountAmount() != null && discount.compareTo($promotion.getMaxDiscountAmount()) > 0) {
+            discount = $promotion.getMaxDiscountAmount();
+        }
+
+        $result.setDiscountAmount($result.getDiscountAmount().add(discount));
+        $result.setAppliedPromotionCode($promotion.getCode());
+        $result.getAppliedDiscounts().add($promotion.getName());
+        update($result);
+end
+
+rule "Apply Fixed Amount Promotion"
+    when
+        $promotion : Promotion(discountType == Promotion.DiscountType.FIXED_AMOUNT)
+        $cart : CartDto(subtotal >= $promotion.minOrderAmount || $promotion.minOrderAmount == null)
+        $result : PriceCalculationResult()
+    then
+        $result.setDiscountAmount($result.getDiscountAmount().add($promotion.getDiscountValue()));
+        $result.setAppliedPromotionCode($promotion.getCode());
+        $result.getAppliedDiscounts().add($promotion.getName());
+        update($result);
+end

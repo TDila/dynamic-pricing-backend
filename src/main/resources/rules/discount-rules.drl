@@ -1,0 +1,27 @@
+package com.ecommerce.rules
+
+import com.ecommerce.dynamic_pricing_backend.dto.CartDto
+import com.ecommerce.dynamic_pricing_backend.dto.PriceCalculationResult
+import java.math.BigDecimal
+
+rule "Bulk Purchase Discount"
+    when
+        $cart : CartDto(items.size() >= 3)
+        $result : PriceCalculationResult()
+    then
+        BigDecimal discount = $cart.getSubtotal().multiply(new BigDecimal("0.10"));
+        $result.setDiscountAmount($result.getDiscountAmount().add(discount));
+        $result.getAppliedDiscounts().add("Bulk Purchase 10% Off");
+        update($result);
+end
+
+rule "High Value Order Discount"
+    when
+        $cart : CartDto(subtotal >= 200)
+        $result : PriceCalculationResult()
+    then
+        BigDecimal discount = new BigDecimal("25.00");
+        $result.setDiscountAmount($result.getDiscountAmount().add(discount));
+        $result.getAppliedDiscounts().add("$25 Off Orders Over $200");
+        update($result);
+end
